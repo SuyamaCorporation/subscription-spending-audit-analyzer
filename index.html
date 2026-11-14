@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>サブスク支出監査・断捨離アドバイザー</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-gray-100 min-h-screen">
+
+<div id="app" class="max-w-2xl mx-auto p-4">
+  <h1 class="text-2xl font-bold text-center mb-1 text-rose-300">💸 サブスク断捨離アドバイザー</h1>
+  <p class="text-center text-gray-400 text-sm mb-4">支出を見える化して解約すべきサブスクを特定</p>
+
+  <!-- Tabs -->
+  <div class="flex gap-2 mb-4">
+    <button onclick="showTab('list')" id="tab-list" class="tab-btn flex-1 py-2 rounded-lg bg-rose-700 text-sm font-semibold transition">📋 リスト</button>
+    <button onclick="showTab('add')" id="tab-add" class="tab-btn flex-1 py-2 rounded-lg bg-slate-700 text-sm font-semibold transition">➕ 追加</button>
+    <button onclick="showTab('audit')" id="tab-audit" class="tab-btn flex-1 py-2 rounded-lg bg-slate-700 text-sm font-semibold transition">🔍 監査</button>
+  </div>
+
+  <!-- List Tab -->
+  <div id="pane-list">
+    <div class="grid grid-cols-3 gap-3 mb-4">
+      <div class="bg-slate-800 rounded-xl p-4 text-center">
+        <div class="text-xl font-bold text-rose-400" id="total-monthly">¥0</div>
+        <div class="text-xs text-gray-400">月額合計</div>
+      </div>
+      <div class="bg-slate-800 rounded-xl p-4 text-center">
+        <div class="text-xl font-bold text-orange-400" id="total-annual">¥0</div>
+        <div class="text-xs text-gray-400">年間合計</div>
+      </div>
+      <div class="bg-slate-800 rounded-xl p-4 text-center">
+        <div class="text-xl font-bold text-yellow-400" id="cancel-savings">¥0</div>
+        <div class="text-xs text-gray-400">節約可能額/月</div>
+      </div>
+    </div>
+
+    <div id="sub-list" class="space-y-2 mb-4"></div>
+
+    <div id="empty-state" class="text-center py-12">
+      <div class="text-5xl mb-3">📱</div>
+      <p class="text-gray-400">サブスクを追加してください</p>
+      <button onclick="showTab('add')" class="mt-3 bg-rose-700 hover:bg-rose-600 px-4 py-2 rounded-lg text-sm transition">➕ 追加する</button>
+    </div>
+
+    <button onclick="loadSamples()" class="w-full bg-slate-700 hover:bg-slate-600 py-2 rounded-lg text-sm transition">サンプルデータを読み込む</button>
+  </div>
+
+  <!-- Add Tab -->
+  <div id="pane-add" class="hidden">
+    <div class="bg-slate-800 rounded-xl p-5">
+      <h2 class="text-lg font-semibold mb-4 text-rose-300">サブスクを追加</h2>
+      <div class="space-y-4">
+        <div>
+          <label class="text-sm text-gray-400 block mb-1">🏷️ サービス名</label>
+          <input id="sub-name" type="text" class="w-full bg-slate-700 rounded-lg p-3 text-white" placeholder="例: Netflix, Spotify, ChatGPT Plus">
+        </div>
+        <div>
+          <label class="text-sm text-gray-400 block mb-1">カテゴリ</label>
+          <select id="sub-category" class="w-full bg-slate-700 rounded-lg p-3 text-white">
+            <option value="entertainment">🎬 エンタメ（動画/音楽）</option>
+            <option value="productivity">💼 生産性ツール</option>
+            <option value="ai">🤖 AI/テクノロジー</option>
+            <option value="fitness">💪 フィットネス/健康</option>
+            <option value="news">📰 ニュース/学習</option>
+            <option value="cloud">☁️ クラウドストレージ</option>
+            <option value="shopping">🛒 ショッピング</option>
+            <option value="other">📦 その他</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-sm text-gray-400 block mb-1">💴 月額料金（円）</label>
+          <input id="sub-price" type="number" min="0" class="w-full bg-slate-700 rounded-lg p-3 text-white" placeholder="例: 1490">
+        </div>
+        <div>
+          <label class="text-sm text-gray-400 block mb-1">📅 契約開始日（任意）</label>
+          <input id="sub-start" type="date" class="w-full bg-slate-700 rounded-lg p-3 text-white">
+        </div>
+        <button onclick="addSub()" class="w-full bg-rose-600 hover:bg-rose-500 py-3 rounded-xl font-bold transition">追加する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audit Tab -->
+  <div id="pane-audit" class="hidden">
+    <div class="bg-slate-800 rounded-xl p-5 mb-4">
+      <h2 class="text-lg font-semibold mb-4 text-rose-300">🔍 使用頻度スコアリング</h2>
+      <p class="text-sm text-gray-400 mb-4">各サービスの使用頻度を評価してください</p>
+      <div id="audit-list" class="space-y-4"></div>
+      <button onclick="calcAudit()" class="w-full mt-4 bg-rose-600 hover:bg-rose-500 py-3 rounded-xl font-bold transition">断捨離判定を実行</button>
+    </div>
+
+    <div id="audit-result" class="hidden">
+      <div class="bg-red-900 rounded-xl p-4 mb-3">
+        <h3 class="font-semibold text-red-300 mb-2">🗑️ 今すぐ解約すべき（優先順位付き）</h3>
+        <div id="cancel-list" class="space-y-2"></div>
+      </div>
+      <div class="bg-yellow-900 rounded-xl p-4 mb-3">
+        <h3 class="font-semibold text-yellow-300 mb-2">🤔 要検討（使い方を見直す）</h3>
+        <div id="review-list" class="space-y-2"></div>
+      </div>
+      <div class="bg-green-900 rounded-xl p-4">
+        <h3 class="font-semibold text-green-300 mb-2">✅ 継続OK（価値あり）</h3>
+        <div id="keep-list" class="space-y-2"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function formatYen(n) {
+  return '¥' + Math.round(n).toLocaleString('ja-JP');
+}
+
+const CAT_ICONS = {
+  entertainment: '🎬', productivity: '💼', ai: '🤖', fitness: '💪',
+  news: '📰', cloud: '☁️', shopping: '🛒', other: '📦'
+};
+
+let subs = JSON.parse(localStorage.getItem('subs-list') || '[]');
+let usageScores = JSON.parse(localStorage.getItem('subs-scores') || '{}');
+
+function saveSubs() {
+  localStorage.setItem('subs-list', JSON.stringify(subs));
+  localStorage.setItem('subs-scores', JSON.stringify(usageScores));
+}
+
+function showTab(tab) {
+  ['list','add','audit'].forEach(t => {
+    document.getElementById('pane-'+t).classList.add('hidden');
+    document.getElementById('tab-'+t).classList.remove('bg-rose-700');
+    document.getElementById('tab-'+t).classList.add('bg-slate-700');
+  });
+  document.getElementById('pane-'+tab).classList.remove('hidden');
+  document.getElementById('tab-'+tab).classList.remove('bg-slate-700');
+  document.getElementById('tab-'+tab).classList.add('bg-rose-700');
+  if (tab === 'list') renderList();
+  if (tab === 'audit') renderAuditList();
+}
+
+function addSub() {
+  const name = document.getElementById('sub-name').value.trim();
+  const price = parseFloat(document.getElementById('sub-price').value);
+  const category = document.getElementById('sub-category').value;
+  const start = document.getElementById('sub-start').value;
+
+  if (!name) { alert('サービス名を入力してください'); return; }
+  if (!price || price <= 0) { alert('月額料金を入力してください'); return; }
+
+  subs.push({ id: Date.now().toString(), name, price, category, start });
+  saveSubs();
+  document.getElementById('sub-name').value = '';
+  document.getElementById('sub-price').value = '';
+  document.getElementById('sub-start').value = '';
+  showTab('list');
+}
+
+function removeSub(id) {
+  subs = subs.filter(s => s.id !== id);
+  delete usageScores[id];
+  saveSubs();
+  renderList();
+  updateTotals();
+}
+
+function renderList() {
+  const list = document.getElementById('sub-list');
+  const empty = document.getElementById('empty-state');
+  list.innerHTML = '';
+
+  if (subs.length === 0) {
+    empty.classList.remove('hidden');
+    updateTotals();
+    return;
+  }
+  empty.classList.add('hidden');
+
+  const sorted = [...subs].sort((a, b) => b.price - a.price);
+  sorted.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'bg-slate-800 rounded-xl p-3 flex items-center gap-3';
+    const icon = document.createElement('div');
+    icon.className = 'text-2xl';
+    icon.textContent = CAT_ICONS[s.category] || '📦';
+    const info = document.createElement('div');
+    info.className = 'flex-1';
+    const name = document.createElement('div');
+    name.className = 'font-semibold text-sm';
+    name.textContent = s.name;
+    const sub = document.createElement('div');
+    sub.className = 'text-xs text-gray-400';
+    sub.textContent = `年間 ${formatYen(s.price * 12)}`;
+    if (s.start) sub.textContent += ` | 開始: ${s.start}`;
+    info.appendChild(name);
+    info.appendChild(sub);
+    const price = document.createElement('div');
+    price.className = 'font-bold text-rose-300 text-sm';
+    price.textContent = formatYen(s.price) + '/月';
+    const btn = document.createElement('button');
+    btn.className = 'text-gray-500 hover:text-red-400 text-xs ml-1';
+    btn.textContent = '✕';
+    btn.onclick = () => removeSub(s.id);
+    div.appendChild(icon);
+    div.appendChild(info);
+    div.appendChild(price);
+    div.appendChild(btn);
+    list.appendChild(div);
+  });
+  updateTotals();
+}
+
+function updateTotals() {
+  const total = subs.reduce((s, e) => s + e.price, 0);
+  document.getElementById('total-monthly').textContent = formatYen(total);
+  document.getElementById('total-annual').textContent = formatYen(total * 12);
+
+  const cancelable = subs.filter(s => {
+    const score = usageScores[s.id] || 3;
+    return score <= 2;
+  });
+  const savings = cancelable.reduce((s, e) => s + e.price, 0);
+  document.getElementById('cancel-savings').textContent = formatYen(savings);
+}
+
+function renderAuditList() {
+  const list = document.getElementById('audit-list');
+  list.innerHTML = '';
+  if (subs.length === 0) {
+    const p = document.createElement('p');
+    p.className = 'text-gray-500 text-sm text-center';
+    p.textContent = 'サブスクを追加してください';
+    list.appendChild(p);
+    return;
+  }
+  subs.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'bg-slate-700 rounded-xl p-3';
+    const header = document.createElement('div');
+    header.className = 'flex justify-between items-center mb-2';
+    const name = document.createElement('div');
+    name.className = 'font-semibold text-sm flex items-center gap-2';
+    name.textContent = (CAT_ICONS[s.category] || '📦') + ' ' + s.name;
+    const pEl = document.createElement('div');
+    pEl.className = 'text-sm text-rose-300';
+    pEl.textContent = formatYen(s.price) + '/月';
+    header.appendChild(name);
+    header.appendChild(pEl);
+
+    const scoreLabel = document.createElement('div');
+    scoreLabel.className = 'text-xs text-gray-400 mb-1';
+    scoreLabel.textContent = '使用頻度:';
+
+    const freqBtns = document.createElement('div');
+    freqBtns.className = 'grid grid-cols-5 gap-1';
+    const freqLabels = ['ほぼ使わない', '月1〜2回', '週1〜2回', '週3〜4回', '毎日'];
+    for (let i = 1; i <= 5; i++) {
+      const btn = document.createElement('button');
+      const curScore = usageScores[s.id] || 0;
+      btn.className = `freq-btn py-1 rounded text-xs transition ${curScore === i ? 'bg-rose-600 text-white' : 'bg-slate-600 hover:bg-slate-500 text-gray-300'}`;
+      btn.textContent = freqLabels[i-1];
+      btn.dataset.subId = s.id;
+      btn.dataset.score = i;
+      btn.onclick = () => {
+        usageScores[s.id] = i;
+        saveSubs();
+        renderAuditList();
+      };
+      freqBtns.appendChild(btn);
+    }
+    div.appendChild(header);
+    div.appendChild(scoreLabel);
+    div.appendChild(freqBtns);
+    list.appendChild(div);
+  });
+}
+
+function calcAudit() {
+  const cancelList = document.getElementById('cancel-list');
+  const reviewList = document.getElementById('review-list');
+  const keepList = document.getElementById('keep-list');
+  cancelList.innerHTML = '';
+  reviewList.innerHTML = '';
+  keepList.innerHTML = '';
+
+  const cancel = [], review = [], keep = [];
+  subs.forEach(s => {
+    const score = usageScores[s.id] || 0;
+    if (!score) {
+      review.push(s);
+    } else if (score <= 1) cancel.push(s);
+    else if (score <= 3) review.push(s);
+    else keep.push(s);
+  });
+
+  cancel.sort((a, b) => b.price - a.price);
+
+  const renderItem = (container, s, rank) => {
+    const div = document.createElement('div');
+    div.className = 'flex items-center gap-2 text-sm bg-black bg-opacity-20 rounded-lg px-3 py-2';
+    if (rank) {
+      const badge = document.createElement('span');
+      badge.className = 'w-5 h-5 rounded-full bg-red-700 text-white text-xs flex items-center justify-center font-bold flex-shrink-0';
+      badge.textContent = rank;
+      div.appendChild(badge);
+    }
+    const info = document.createElement('div');
+    info.className = 'flex-1';
+    const n = document.createElement('div');
+    n.className = 'font-semibold';
+    n.textContent = s.name;
+    const p = document.createElement('div');
+    p.className = 'text-xs text-gray-400';
+    p.textContent = `${formatYen(s.price)}/月 (年${formatYen(s.price * 12)})`;
+    info.appendChild(n);
+    info.appendChild(p);
+    div.appendChild(info);
+    container.appendChild(div);
+  };
+
+  if (cancel.length === 0) {
+    const p = document.createElement('p');
+    p.className = 'text-gray-500 text-xs text-center';
+    p.textContent = 'なし';
+    cancelList.appendChild(p);
+  } else {
+    cancel.forEach((s, i) => renderItem(cancelList, s, i + 1));
+  }
+  if (review.length === 0) {
+    const p = document.createElement('p');
+    p.className = 'text-gray-500 text-xs text-center';
+    p.textContent = 'なし';
+    reviewList.appendChild(p);
+  } else review.forEach(s => renderItem(reviewList, s, null));
+  if (keep.length === 0) {
+    const p = document.createElement('p');
+    p.className = 'text-gray-500 text-xs text-center';
+    p.textContent = 'なし';
+    keepList.appendChild(p);
+  } else keep.forEach(s => renderItem(keepList, s, null));
+
+  document.getElementById('audit-result').classList.remove('hidden');
+  updateTotals();
+}
+
+function loadSamples() {
+  if (subs.length > 0 && !confirm('現在のデータを削除してサンプルを読み込みますか？')) return;
+  subs = [
+    { id: '1', name: 'Netflix', price: 1490, category: 'entertainment', start: '2024-04-01' },
+    { id: '2', name: 'Spotify', price: 980, category: 'entertainment', start: '2023-01-01' },
+    { id: '3', name: 'ChatGPT Plus', price: 3000, category: 'ai', start: '2024-06-01' },
+    { id: '4', name: 'Adobe CC', price: 6248, category: 'productivity', start: '2023-07-01' },
+    { id: '5', name: 'Amazon Prime', price: 600, category: 'shopping', start: '2022-11-01' },
+    { id: '6', name: 'iCloud 200GB', price: 400, category: 'cloud', start: '2023-03-01' },
+    { id: '7', name: 'Duolingo Plus', price: 1250, category: 'news', start: '2024-02-01' },
+    { id: '8', name: 'Disney+', price: 990, category: 'entertainment', start: '2024-09-01' },
+  ];
+  saveSubs();
+  showTab('list');
+}
+
+// Init
+renderList();
+</script>
+</body>
+</html>
